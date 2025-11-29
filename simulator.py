@@ -1,132 +1,7 @@
 from random import randint
 from math import floor
 import pygame
-
-class Board():
-    def __init__(self, height=10, width=10):
-        self.height = height
-        self.width = width
-        self.board = self.create_board(height, width)
-
-    def create_board(self, height, width):
-        """Generate a NxN board for simulation"""
-        board = []
-        # Add columns
-        for _ in range(height):
-            board.append([])
-            for _ in range(width):
-                board[-1].append(None)
-        return board
-    
-    def populate_board(self, weight=0.8):
-        """Generate random positions for trees"""
-        total_trees = floor((self.height * self.width) * weight)
-
-        for _ in range(total_trees):
-            added = False
-            # Create a random index for the tree
-            while added == False:
-                spot = self.get_random_spot()
-                if not self.board[spot['x']][spot['y']]:
-                    self.board[spot['x']][spot['y']] = 1  # Tree
-                    added = True
-
-    def get_random_spot(self):
-        """Pick a random index in a 2D NxN array"""
-        return {'x': randint(0,self.height-1), 'y': randint(0,self.width-1)}
-
-    def lightning(self, real_spot=None):
-        """Simulate lightning"""
-        spot = self.get_random_spot() if real_spot == None else real_spot
-        cf = coin_flip(weight=0.5)
-
-        if self.board[spot['x']][spot['y']] and cf:
-            self.board[spot['x']][spot['y']] = 0
-            for neighbor in filter_pixels(self.height, self.width, get_indices(kernel=(3,3), height_index=spot['x'], width_index=spot['y'])):
-                if neighbor != spot:
-                    self.lightning(neighbor)
-    
-    def grow(self):
-        """Simulate growth after fire"""
-        for x, col in enumerate(self.board):
-            for y, tree in enumerate(col):
-                # Bias towards growth
-                if tree != 1 and coin_flip(weight=0.8):
-                    self.board[x][y] = 1
-
-
-    def pretty_print(self):
-        """Print the board in a visually appealing manner"""
-        for row in self.board:
-            print(str(row).center(60))
-
-
-pygame.init()
-WHITE = (255,255,255)
-GREEN = (0,255,0)
-FIRE = (255,15,0)
-BG = (0, 0, 0)
-
-WIDTH, HEIGHT = 800, 800
-TILE_SIZE = 20
-GRID_WIDTH = WIDTH // TILE_SIZE
-GRID_HEIGHT = HEIGHT // TILE_SIZE
-FPS = 60
-
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-clock = pygame.time.Clock()
-
-def draw_grid(positions):
-    for position in positions:
-        col, row, color =  position
-        top_left = (col*TILE_SIZE, row*TILE_SIZE)
-        pygame.draw.rect(screen, color, (*top_left, TILE_SIZE, TILE_SIZE))
-
-
-    for row in range(GRID_HEIGHT):
-        pygame.draw.line(screen, WHITE, (0, row*TILE_SIZE), (WIDTH, row*TILE_SIZE))
-    for col in range(GRID_WIDTH):
-        pygame.draw.line(screen, WHITE, (col*TILE_SIZE, 0), (col*TILE_SIZE, HEIGHT))
-
-
-def main():
-    running = True
-
-    board = Board(40, 40)
-    board.populate_board()
-
-    positions = set()
-    while running:
-        clock.tick(FPS)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            
-            for col_index, col in enumerate(board.board):
-                for row_index, value in enumerate(col):
-                    col_index = col_index
-                    row_index = row_index
-                    color = BG
-                    if value == 0:
-                        color = FIRE
-                    elif value == 1:
-                        color = GREEN
-
-                    position = (col_index, row_index, color)
-                    print(position)
-                    positions.add(position)
-                    
-            
-        screen.fill(BG)
-        # Grid lines on top of background
-        draw_grid(positions)
-        pygame.display.update()
-    pygame.quit()
-
-if __name__ == "__main__":
-    main()
-
+import time
 
 
 def get_indices(kernel: tuple[int], height_index: int, width_index: int) -> list[list[int]]:
@@ -154,6 +29,140 @@ def coin_flip(weight=0.5) -> bool:
     """Simulate a coin flip for probability of power law"""
     number = randint(1,100)
     return True if number >= floor(100*weight) else False
+
+class Board():
+    def __init__(self, height=10, width=10):
+        self.height = height
+        self.width = width
+        self.board = self.create_board(height, width)
+
+    def create_board(self, height, width):
+        """Generate a NxN board for simulation"""
+        board = []
+        # Add columns
+        for _ in range(height):
+            board.append([])
+            for _ in range(width):
+                board[-1].append(None)
+        return board
+    
+    def populate_board(self, weight=0.6):
+        """Generate random positions for trees"""
+        total_trees = floor((self.height * self.width) * weight)
+
+        for _ in range(total_trees):
+            added = False
+            # Create a random index for the tree
+            while added == False:
+                spot = self.get_random_spot()
+                if not self.board[spot['x']][spot['y']]:
+                    self.board[spot['x']][spot['y']] = 1  # Tree
+                    added = True
+
+    def get_random_spot(self):
+        """Pick a random index in a 2D NxN array"""
+        return {'x': randint(0,self.height-1), 'y': randint(0,self.width-1)}
+
+    def lightning(self, real_spot=None, flamed_trees=[], weight=.995):
+        """Simulate lightning"""
+        spot = self.get_random_spot() if real_spot is None else real_spot
+        cf = coin_flip(weight=weight)
+        print(cf)
+
+        if self.board[spot['x']][spot['y']] == 1 and cf:
+            self.board[spot['x']][spot['y']] = 0
+            for neighbor in filter_pixels(self.height, self.width, get_indices(kernel=(3,3), height_index=spot['x'], width_index=spot['y'])):
+                if self.board[neighbor['x']][neighbor['y']] == 1:
+                    self.lightning(neighbor, flamed_trees)
+    
+    def grow(self):
+        """Simulate growth after fire"""
+        for x, col in enumerate(self.board):
+            for y, tree in enumerate(col):
+                # Bias towards growth
+                if tree != 1 and coin_flip(weight=0.2):
+                    self.board[x][y] = 1
+
+    
+    def simulate(self):
+        """Run full simulation"""
+        self.grow()
+        self.lightning(weight=0)
+
+
+    def pretty_print(self):
+        """Print the board in a visually appealing manner"""
+        for row in self.board:
+            print(str(row).center(60))
+
+
+pygame.init()
+WHITE = (255,255,255)
+GREEN = (0,255,0)
+FIRE = (255,15,0)
+BG = (0, 0, 0)
+
+WIDTH, HEIGHT = 800, 800
+TILE_SIZE = 1
+GRID_WIDTH = WIDTH // TILE_SIZE
+GRID_HEIGHT = HEIGHT // TILE_SIZE
+FPS = 60
+
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+clock = pygame.time.Clock()
+
+def draw_grid(positions):
+    for position in positions:
+        col, row, color =  position
+        top_left = (col*TILE_SIZE, row*TILE_SIZE)
+        pygame.draw.rect(screen, color, (*top_left, TILE_SIZE, TILE_SIZE))
+
+
+    # for row in range(GRID_HEIGHT):
+    #     pygame.draw.line(screen, WHITE, (0, row*TILE_SIZE), (WIDTH, row*TILE_SIZE))
+    # for col in range(GRID_WIDTH):
+    #     pygame.draw.line(screen, WHITE, (col*TILE_SIZE, 0), (col*TILE_SIZE, HEIGHT))
+
+
+def main():
+    running = True
+    playing = False
+
+    board = Board(400, 400)
+    board.populate_board()
+
+    screen.fill(BG)
+
+    positions = set()
+    while running:
+        clock.tick(FPS)
+
+        board.simulate()
+        for col_index, col in enumerate(board.board):
+            for row_index, value in enumerate(col):
+                color = BG
+                if value == 0:
+                    color = FIRE
+                elif value == 1:
+                    color = GREEN
+
+                position = (col_index, row_index, color)
+                positions.add(position)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                    
+            
+        screen.fill(BG)
+        # Grid lines on top of background
+        draw_grid(positions)
+        pygame.display.update()
+    pygame.quit()
+
+if __name__ == "__main__":
+    main()
+
 
 # game_board = Board()
 # game_board.populate_board()
