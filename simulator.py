@@ -2,6 +2,20 @@ from random import randint
 from math import floor
 import pygame
 import time
+import sys
+
+
+
+# Get the current recursion limit (optional)
+current_limit = sys.getrecursionlimit()
+print(f"Current recursion limit: {current_limit}")
+
+# Set a new recursion limit
+new_limit = 2000  # Example: setting the limit to 2000
+sys.setrecursionlimit(new_limit)
+
+# Verify the new limit (optional)
+updated_limit = sys.getrecursionlimit()
 
 
 def get_indices(kernel: tuple[int], height_index: int, width_index: int) -> list[list[int]]:
@@ -97,7 +111,7 @@ FIRE = (255,15,0)
 BG = (0, 0, 0)
 
 WIDTH, HEIGHT = 800, 800
-TILE_SIZE = 40
+TILE_SIZE = 20
 GRID_WIDTH = WIDTH // TILE_SIZE
 GRID_HEIGHT = HEIGHT // TILE_SIZE
 FPS = 60
@@ -120,7 +134,7 @@ def draw_grid(positions):
 
 def main():
     running = True
-    board = Board(20, 20)
+    board = Board(40, 40)
     board.populate_board()
 
     while running:
